@@ -207,6 +207,26 @@ function advanceRound(state) {
 }
 
 /**
+ * Switch to a specific round (allows skipping ahead or going back).
+ */
+function switchToRound(state, round) {
+    state.currentRound = round;
+
+    // If this round has never been started, populate it with all species
+    const progress = state.roundProgress[round];
+    if (progress.remaining.length === 0 && progress.completed.length === 0 && progress.retryQueue.length === 0) {
+        const allSpecies = [
+            ...state.roundProgress[1].completed,
+            ...state.roundProgress[1].remaining,
+            ...state.roundProgress[1].retryQueue
+        ];
+        progress.remaining = shuffle([...new Set(allSpecies)]);
+    }
+
+    saveState(state);
+}
+
+/**
  * Get completion percentage for a round.
  */
 function getRoundCompletion(state, round) {

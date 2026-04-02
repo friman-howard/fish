@@ -183,6 +183,10 @@ body {
     transition: border-color var(--transition);
 }
 
+.round-progress-card:active {
+    transform: scale(0.98);
+}
+
 .round-progress-card.current {
     border-left-color: var(--color-teal);
     box-shadow: var(--shadow-md);

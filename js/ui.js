@@ -48,6 +48,12 @@ function renderHome(state, totalSpecies) {
             </div>
         `;
 
+        card.style.cursor = "pointer";
+        card.addEventListener("click", () => {
+            switchToRound(state, r);
+            startQuiz();
+        });
+
         overview.appendChild(card);
     }
 

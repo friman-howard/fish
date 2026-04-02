@@ -1,0 +1,10 @@
+{
+    "name": "Maldives Marine Life Quiz",
+    "short_name": "Fish Quiz",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#0a2942",
+    "theme_color": "#0a2942",
+    "description": "Study Maldivian marine species for your marine biology exam",
+    "icons": []
+}

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0a2942">
+    <title>Maldives Marine Life Quiz</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="manifest" href="manifest.json">
+</head>
+<body>
+    <div id="app">
+        <!-- Loading screen -->
+        <div id="loading-screen" class="screen active">
+            <div class="loading-content">
+                <div class="fish-icon">🐠</div>
+                <h1>Maldives Marine Life Quiz</h1>
+                <p>Loading species data...</p>
+                <div class="loading-bar">
+                    <div class="loading-fill"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Home / Dashboard screen -->
+        <div id="home-screen" class="screen">
+            <div class="home-header">
+                <h1>Maldives Marine Life</h1>
+                <p class="subtitle">Species Identification Quiz</p>
+            </div>
+
+            <div class="progress-overview" id="progress-overview">
+                <!-- Filled dynamically -->
+            </div>
+
+            <div class="home-actions">
+                <button id="btn-continue" class="btn btn-primary btn-large">
+                    Continue Learning
+                </button>
+                <button id="btn-restart-round" class="btn btn-secondary">
+                    Restart Current Round
+                </button>
+            </div>
+
+            <div class="home-footer">
+                <button id="btn-browse" class="btn btn-link">Browse All Species</button>
+                <button id="btn-settings" class="btn btn-link">Settings</button>
+            </div>
+        </div>
+
+        <!-- Quiz screen -->
+        <div id="quiz-screen" class="screen">
+            <div class="quiz-header">
+                <div class="quiz-info">
+                    <span id="quiz-round-label" class="round-label">Round 1</span>
+                    <span id="quiz-progress-text" class="progress-text">1/235</span>
+                </div>
+                <div class="quiz-progress-bar">
+                    <div id="quiz-progress-fill" class="progress-fill"></div>
+                </div>
+                <button id="btn-home" class="btn btn-icon" title="Home">✕</button>
+            </div>
+
+            <div id="quiz-content" class="quiz-content">
+                <!-- Filled dynamically based on round type -->
+            </div>
+
+            <div id="quiz-feedback" class="quiz-feedback hidden">
+                <div id="feedback-content"></div>
+                <button id="btn-next" class="btn btn-primary">Next</button>
+            </div>
+        </div>
+
+        <!-- Round complete screen -->
+        <div id="round-complete-screen" class="screen">
+            <div class="celebration">
+                <div class="celebration-icon">🎉</div>
+                <h2 id="round-complete-title">Round 1 Complete!</h2>
+                <p id="round-complete-message"></p>
+                <div id="round-complete-stats" class="stats-grid"></div>
+                <button id="btn-next-round" class="btn btn-primary btn-large">
+                    Start Next Round
+                </button>
+                <button id="btn-round-home" class="btn btn-secondary">
+                    Back to Home
+                </button>
+            </div>
+        </div>
+
+        <!-- All complete screen -->
+        <div id="all-complete-screen" class="screen">
+            <div class="celebration">
+                <div class="celebration-icon">🏆</div>
+                <h2>Congratulations!</h2>
+                <p>You've mastered all 235 species across all 5 rounds!</p>
+                <p class="subtitle">You're ready for the exam!</p>
+                <button id="btn-all-home" class="btn btn-primary btn-large">
+                    Back to Home
+                </button>
+            </div>
+        </div>
+
+        <!-- Species browser screen -->
+        <div id="browse-screen" class="screen">
+            <div class="browse-header">
+                <button id="btn-browse-back" class="btn btn-icon">←</button>
+                <h2>Species Browser</h2>
+                <div class="browse-search">
+                    <input type="text" id="browse-search-input" placeholder="Search species...">
+                </div>
+            </div>
+            <div class="browse-filters" id="browse-filters">
+                <!-- Family filter buttons -->
+            </div>
+            <div id="browse-list" class="browse-list">
+                <!-- Species cards -->
+            </div>
+        </div>
+
+        <!-- Settings screen -->
+        <div id="settings-screen" class="screen">
+            <div class="settings-header">
+                <button id="btn-settings-back" class="btn btn-icon">←</button>
+                <h2>Settings</h2>
+            </div>
+            <div class="settings-content">
+                <div class="setting-item">
+                    <h3>Reset Progress</h3>
+                    <p>Start over from Round 1. This cannot be undone.</p>
+                    <button id="btn-reset" class="btn btn-danger">Reset All Progress</button>
+                </div>
+                <div class="setting-item">
+                    <h3>Refresh Images</h3>
+                    <p>Re-download species images from Wikipedia if any are missing.</p>
+                    <button id="btn-refresh-images" class="btn btn-secondary">Refresh Images</button>
+                </div>
+                <div class="setting-item">
+                    <h3>About</h3>
+                    <p>Maldives Marine Life Quiz - built to help study for marine biology exams.</p>
+                    <p>Species data from FishBase. Images loaded from Wikipedia and Wikimedia Commons.</p>
+                    <p><strong>235 species</strong> across 39 families.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/levenshtein.js"></script>
+    <script src="js/images.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/quiz.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

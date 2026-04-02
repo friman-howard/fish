@@ -1,18 +1,18 @@
 /**
  * Dynamic image loader for the Maldives Marine Life Quiz.
- * Fetches species images from Wikipedia and Wikimedia Commons APIs
- * at runtime, then caches the URLs in localStorage.
+ * Fetches species images from iNaturalist (primary) and Wikimedia Commons
+ * (fallback) APIs at runtime, then caches the URLs in localStorage.
  *
  * This approach avoids storing hundreds of images in the repository
  * while still providing a fast experience after first load.
  */
 
 const IMAGE_CACHE_KEY = "maldives-fish-quiz-images";
-const IMAGE_CACHE_VERSION = 2;
-const WIKI_API_BASE = "https://en.wikipedia.org/api/rest_v1/page/summary/";
+const IMAGE_CACHE_VERSION = 3;
+const INAT_API_BASE = "https://api.inaturalist.org/v1/taxa";
 const COMMONS_API_BASE = "https://commons.wikimedia.org/w/api.php";
-const BATCH_SIZE = 50;
-const REQUEST_DELAY = 200; // ms between API calls
+const BATCH_SIZE = 30;
+const REQUEST_DELAY = 300; // ms between API calls
 
 /**
  * Load or fetch all species images.
@@ -30,7 +30,6 @@ async function loadSpeciesImages(speciesList, progressCallback) {
         }
     }
 
-    // Fetch images from Wikipedia
     const imageMap = cached || {};
     const uncached = speciesList.filter(sp => !imageMap[sp.id] || imageMap[sp.id].length === 0);
 
@@ -39,46 +38,23 @@ async function loadSpeciesImages(speciesList, progressCallback) {
     const total = uncached.length;
     let completed = 0;
 
-    // Batch fetch from Wikipedia REST API (summary endpoint)
+    // Primary source: iNaturalist taxa API
     for (let i = 0; i < uncached.length; i += BATCH_SIZE) {
         const batch = uncached.slice(i, i + BATCH_SIZE);
 
-        // Fetch each species in the batch concurrently
         const promises = batch.map(async (species) => {
             try {
-                const title = species.latinName.replace(/ /g, "_");
-                const url = WIKI_API_BASE + encodeURIComponent(title);
-                const response = await fetch(url);
-
-                if (!response.ok) return null;
-                const data = await response.json();
-
-                const images = [];
-
-                // Prefer thumbnail URL (guaranteed valid) resized to
-                // fit within the original dimensions.  Wikimedia will
-                // 404 if we request a thumb larger than the original,
-                // so cap the width accordingly.
-                if (data.thumbnail && data.thumbnail.source) {
-                    const maxWidth = (data.originalimage && data.originalimage.width)
-                        ? Math.min(data.originalimage.width, 800)
-                        : 400;
-                    images.push(resizeWikiUrl(data.thumbnail.source, maxWidth));
-                } else if (data.originalimage && data.originalimage.source) {
-                    // No thumbnail – use the original directly
-                    images.push(data.originalimage.source);
-                }
-
+                const images = await fetchINatImages(species.latinName);
                 return { id: species.id, images };
             } catch (e) {
-                return null;
+                return { id: species.id, images: [] };
             }
         });
 
         const results = await Promise.all(promises);
 
         for (const result of results) {
-            if (result && result.images.length > 0) {
+            if (result.images.length > 0) {
                 imageMap[result.id] = result.images;
             }
             completed++;
@@ -88,16 +64,14 @@ async function loadSpeciesImages(speciesList, progressCallback) {
             progressCallback(completed, total);
         }
 
-        // Save progress
         saveImageCache(imageMap);
 
-        // Small delay between batches
         if (i + BATCH_SIZE < uncached.length) {
             await sleep(REQUEST_DELAY);
         }
     }
 
-    // For species still missing images, try Wikimedia Commons search
+    // Fallback: Wikimedia Commons for species still missing images
     const stillMissing = speciesList.filter(sp => !imageMap[sp.id] || imageMap[sp.id].length === 0);
 
     if (stillMissing.length > 0) {
@@ -129,7 +103,71 @@ async function loadSpeciesImages(speciesList, progressCallback) {
 }
 
 /**
- * Search Wikimedia Commons for species images.
+ * Fetch species images from the iNaturalist taxa API.
+ * Returns an array of image URLs.
+ */
+async function fetchINatImages(latinName) {
+    const params = new URLSearchParams({
+        q: latinName,
+        per_page: "1",
+        is_active: "true"
+    });
+
+    const response = await fetch(`${INAT_API_BASE}?${params}`);
+    if (!response.ok) return [];
+
+    const data = await response.json();
+    const results = data.results || [];
+
+    if (results.length === 0) return [];
+
+    // Find the best matching taxon (exact species name match preferred)
+    const taxon = results.find(t => t.name === latinName) || results[0];
+    const images = [];
+
+    // Get the default photo
+    if (taxon.default_photo) {
+        const photoUrl = getINatPhotoUrl(taxon.default_photo, "medium");
+        if (photoUrl) images.push(photoUrl);
+    }
+
+    // Also grab taxon_photos for variety (up to 3 total)
+    if (taxon.taxon_photos && taxon.taxon_photos.length > 0) {
+        for (const tp of taxon.taxon_photos) {
+            if (images.length >= 3) break;
+            if (tp.photo) {
+                const photoUrl = getINatPhotoUrl(tp.photo, "medium");
+                if (photoUrl && !images.includes(photoUrl)) {
+                    images.push(photoUrl);
+                }
+            }
+        }
+    }
+
+    return images;
+}
+
+/**
+ * Get a sized photo URL from an iNaturalist photo object.
+ * iNaturalist photo URLs follow the pattern:
+ *   https://inaturalist-open-data.s3.amazonaws.com/photos/{id}/{size}.{ext}
+ *   or https://static.inaturalist.org/photos/{id}/{size}.{ext}
+ * Sizes: square (75px), small (240px), medium (500px), large (1024px), original
+ */
+function getINatPhotoUrl(photo, size) {
+    // Try medium_url directly
+    if (photo.medium_url) return photo.medium_url;
+
+    // Build from square_url or url by replacing the size segment
+    const baseUrl = photo.square_url || photo.url || photo.small_url;
+    if (!baseUrl) return null;
+
+    // Replace size in URL path: /square. -> /medium. or /small. -> /medium.
+    return baseUrl.replace(/\/(square|small|medium|large|original)\./, `/${size}.`);
+}
+
+/**
+ * Search Wikimedia Commons for species images (fallback).
  */
 async function searchCommonsImages(latinName, limit = 2) {
     const params = new URLSearchParams({
@@ -142,7 +180,7 @@ async function searchCommonsImages(latinName, limit = 2) {
         gsrlimit: String(limit),
         prop: "imageinfo",
         iiprop: "url",
-        iiurlwidth: "800"
+        iiurlwidth: "500"
     });
 
     const response = await fetch(`${COMMONS_API_BASE}?${params}`);
@@ -162,33 +200,6 @@ async function searchCommonsImages(latinName, limit = 2) {
     }
 
     return images;
-}
-
-/**
- * Resize a Wikimedia image URL to a specific width.
- * Wikimedia thumb URLs follow the pattern: .../thumb/hash/Filename/WIDTHpx-Filename
- */
-function resizeWikiUrl(url, width) {
-    // If it's already a thumb URL, replace the width
-    const thumbMatch = url.match(/\/(\d+)px-[^/]+$/);
-    if (thumbMatch) {
-        return url.replace(/\/\d+px-/, `/${width}px-`);
-    }
-
-    // If it's an original URL, convert to thumb URL
-    // Pattern: upload.wikimedia.org/wikipedia/commons/a/ab/File.jpg
-    // Becomes: upload.wikimedia.org/wikipedia/commons/thumb/a/ab/File.jpg/800px-File.jpg
-    const commonsMatch = url.match(/\/wikipedia\/commons\/([0-9a-f]\/[0-9a-f]{2}\/([^/]+))$/);
-    if (commonsMatch) {
-        const path = commonsMatch[1];
-        const filename = commonsMatch[2];
-        return url.replace(
-            `/wikipedia/commons/${path}`,
-            `/wikipedia/commons/thumb/${path}/${width}px-${filename}`
-        );
-    }
-
-    return url;
 }
 
 /**

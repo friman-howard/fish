@@ -8,7 +8,7 @@
  */
 
 const IMAGE_CACHE_KEY = "maldives-fish-quiz-images";
-const IMAGE_CACHE_VERSION = 1;
+const IMAGE_CACHE_VERSION = 2;
 const WIKI_API_BASE = "https://en.wikipedia.org/api/rest_v1/page/summary/";
 const COMMONS_API_BASE = "https://commons.wikimedia.org/w/api.php";
 const BATCH_SIZE = 50;
@@ -55,11 +55,18 @@ async function loadSpeciesImages(speciesList, progressCallback) {
 
                 const images = [];
 
-                // Get the main thumbnail
-                if (data.originalimage && data.originalimage.source) {
-                    images.push(resizeWikiUrl(data.originalimage.source, 800));
-                } else if (data.thumbnail && data.thumbnail.source) {
-                    images.push(resizeWikiUrl(data.thumbnail.source, 800));
+                // Prefer thumbnail URL (guaranteed valid) resized to
+                // fit within the original dimensions.  Wikimedia will
+                // 404 if we request a thumb larger than the original,
+                // so cap the width accordingly.
+                if (data.thumbnail && data.thumbnail.source) {
+                    const maxWidth = (data.originalimage && data.originalimage.width)
+                        ? Math.min(data.originalimage.width, 800)
+                        : 400;
+                    images.push(resizeWikiUrl(data.thumbnail.source, maxWidth));
+                } else if (data.originalimage && data.originalimage.source) {
+                    // No thumbnail – use the original directly
+                    images.push(data.originalimage.source);
                 }
 
                 return { id: species.id, images };

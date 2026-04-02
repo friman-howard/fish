@@ -3,7 +3,7 @@
  * Caches app shell on install, then caches remote images as they're viewed.
  */
 
-const CACHE_NAME = "maldives-fish-quiz-v1";
+const CACHE_NAME = "maldives-fish-quiz-v2";
 const APP_SHELL = [
     "./",
     "./index.html",

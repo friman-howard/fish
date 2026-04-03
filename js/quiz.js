@@ -1,18 +1,14 @@
 /**
  * Quiz engine for the Maldives Marine Life Quiz.
  * Handles question generation, distractor selection, and answer validation
- * for all 5 round types.
+ * for all 7 round types.
+ *
+ * Rounds 1-2: Group identification
+ * Rounds 3-7: Species identification (progressively harder)
  */
 
 /**
  * Generate a quiz question for the current species and round.
- *
- * Returns an object with:
- * - type: round number (1-5)
- * - targetSpecies: the species being tested
- * - distractors: array of distractor species (for rounds 1-4)
- * - correctIndex: index of the correct answer in the options array
- * - options: array of option objects (either image URLs or name objects)
  */
 function generateQuestion(state, speciesMap, allSpecies) {
     const round = state.currentRound;
@@ -28,21 +24,23 @@ function generateQuestion(state, speciesMap, allSpecies) {
     }
 
     switch (round) {
-        case 1: return generateRound1(target, speciesMap, allSpecies);
-        case 2: return generateRound2(target, speciesMap, allSpecies);
+        case 1: return generateGroupRound1(target, speciesMap, allSpecies);
+        case 2: return generateGroupRound2(target, speciesMap, allSpecies);
         case 3: return generateRound3(target, speciesMap, allSpecies);
         case 4: return generateRound4(target, speciesMap, allSpecies);
-        case 5: return generateRound5(target);
+        case 5: return generateRound5(target, speciesMap, allSpecies);
+        case 6: return generateRound6(target, speciesMap, allSpecies);
+        case 7: return generateRound7(target);
         default: return null;
     }
 }
 
 /**
- * Round 1: Show 4 images + 1 name (English + Latin).
- * User picks which image matches the name.
+ * Round 1 (Group): Show 4 images from different groups + 1 group name.
+ * User picks which image belongs to that group.
  */
-function generateRound1(target, speciesMap, allSpecies) {
-    const distractors = pickDistractors(target, speciesMap, allSpecies, 3);
+function generateGroupRound1(target, speciesMap, allSpecies) {
+    const distractors = pickGroupDistractors(target, allSpecies, 3);
     const options = [target, ...distractors].map(sp => ({
         speciesId: sp.id,
         image: randomImage(sp)
@@ -55,8 +53,7 @@ function generateRound1(target, speciesMap, allSpecies) {
         type: 1,
         targetSpecies: target,
         prompt: {
-            latinName: target.latinName,
-            englishName: target.englishName
+            groupName: target.group
         },
         options: shuffled,
         correctIndex,
@@ -65,19 +62,21 @@ function generateRound1(target, speciesMap, allSpecies) {
 }
 
 /**
- * Round 2: Show 1 image + 4 names (English + Latin).
- * User picks which name matches the image.
+ * Round 2 (Group): Show 1 image + 4 group names.
+ * User picks which group the fish belongs to.
  */
-function generateRound2(target, speciesMap, allSpecies) {
-    const distractors = pickDistractors(target, speciesMap, allSpecies, 3);
-    const options = [target, ...distractors].map(sp => ({
-        speciesId: sp.id,
-        latinName: sp.latinName,
-        englishName: sp.englishName
+function generateGroupRound2(target, speciesMap, allSpecies) {
+    // Get unique groups excluding the target's group
+    const allGroups = [...new Set(allSpecies.map(sp => sp.group))];
+    const otherGroups = allGroups.filter(g => g !== target.group);
+    const distractorGroups = shuffle(otherGroups).slice(0, 3);
+
+    const options = [target.group, ...distractorGroups].map(group => ({
+        groupName: group
     }));
 
     const shuffled = shuffle(options);
-    const correctIndex = shuffled.findIndex(o => o.speciesId === target.id);
+    const correctIndex = shuffled.findIndex(o => o.groupName === target.group);
 
     return {
         type: 2,
@@ -92,8 +91,8 @@ function generateRound2(target, speciesMap, allSpecies) {
 }
 
 /**
- * Round 3: Show 4 images + 1 Latin-only name.
- * User picks which image matches the Latin name.
+ * Round 3: Show 4 images + 1 name (English + Latin).
+ * User picks which image matches the name.
  */
 function generateRound3(target, speciesMap, allSpecies) {
     const distractors = pickDistractors(target, speciesMap, allSpecies, 3);
@@ -109,8 +108,8 @@ function generateRound3(target, speciesMap, allSpecies) {
         type: 3,
         targetSpecies: target,
         prompt: {
-            latinName: target.latinName
-            // No english name in round 3
+            latinName: target.latinName,
+            englishName: target.englishName
         },
         options: shuffled,
         correctIndex,
@@ -119,14 +118,15 @@ function generateRound3(target, speciesMap, allSpecies) {
 }
 
 /**
- * Round 4: Show 1 image + 4 Latin-only names.
- * User picks which Latin name matches the image.
+ * Round 4: Show 1 image + 4 names (English + Latin).
+ * User picks which name matches the image.
  */
 function generateRound4(target, speciesMap, allSpecies) {
     const distractors = pickDistractors(target, speciesMap, allSpecies, 3);
     const options = [target, ...distractors].map(sp => ({
         speciesId: sp.id,
-        latinName: sp.latinName
+        latinName: sp.latinName,
+        englishName: sp.englishName
     }));
 
     const shuffled = shuffle(options);
@@ -145,11 +145,63 @@ function generateRound4(target, speciesMap, allSpecies) {
 }
 
 /**
- * Round 5: Show 1 image. User types the Latin name.
+ * Round 5: Show 4 images + 1 Latin-only name.
+ * User picks which image matches the Latin name.
  */
-function generateRound5(target) {
+function generateRound5(target, speciesMap, allSpecies) {
+    const distractors = pickDistractors(target, speciesMap, allSpecies, 3);
+    const options = [target, ...distractors].map(sp => ({
+        speciesId: sp.id,
+        image: randomImage(sp)
+    }));
+
+    const shuffled = shuffle(options);
+    const correctIndex = shuffled.findIndex(o => o.speciesId === target.id);
+
     return {
         type: 5,
+        targetSpecies: target,
+        prompt: {
+            latinName: target.latinName
+        },
+        options: shuffled,
+        correctIndex,
+        correctId: target.id
+    };
+}
+
+/**
+ * Round 6: Show 1 image + 4 Latin-only names.
+ * User picks which Latin name matches the image.
+ */
+function generateRound6(target, speciesMap, allSpecies) {
+    const distractors = pickDistractors(target, speciesMap, allSpecies, 3);
+    const options = [target, ...distractors].map(sp => ({
+        speciesId: sp.id,
+        latinName: sp.latinName
+    }));
+
+    const shuffled = shuffle(options);
+    const correctIndex = shuffled.findIndex(o => o.speciesId === target.id);
+
+    return {
+        type: 6,
+        targetSpecies: target,
+        prompt: {
+            image: randomImage(target)
+        },
+        options: shuffled,
+        correctIndex,
+        correctId: target.id
+    };
+}
+
+/**
+ * Round 7: Show 1 image. User types the Latin name.
+ */
+function generateRound7(target) {
+    return {
+        type: 7,
         targetSpecies: target,
         prompt: {
             image: randomImage(target)
@@ -157,6 +209,39 @@ function generateRound5(target) {
         correctAnswer: target.latinName,
         correctId: target.id
     };
+}
+
+/**
+ * Pick N distractor species from DIFFERENT groups (for group rounds).
+ * Ensures each distractor is from a unique group.
+ */
+function pickGroupDistractors(target, allSpecies, count) {
+    const usedGroups = new Set([target.group]);
+    const distractors = [];
+
+    const candidates = shuffle(
+        allSpecies.filter(sp => sp.id !== target.id && sp.images && sp.images.length > 0)
+    );
+
+    for (const sp of candidates) {
+        if (distractors.length >= count) break;
+        if (!usedGroups.has(sp.group)) {
+            distractors.push(sp);
+            usedGroups.add(sp.group);
+        }
+    }
+
+    // If not enough unique groups, fill with any other species
+    if (distractors.length < count) {
+        for (const sp of candidates) {
+            if (distractors.length >= count) break;
+            if (sp.id !== target.id && !distractors.some(d => d.id === sp.id)) {
+                distractors.push(sp);
+            }
+        }
+    }
+
+    return distractors;
 }
 
 /**
@@ -200,7 +285,7 @@ function pickDistractors(target, speciesMap, allSpecies, count) {
         }
     }
 
-    // If still not enough (shouldn't happen), add from same family
+    // If still not enough, add from same family
     if (distractors.length < count) {
         for (const sp of sameFamilyShuffled) {
             if (!used.has(sp.id) && distractors.length < count) {

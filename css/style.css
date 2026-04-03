@@ -455,6 +455,18 @@ body {
     color: var(--color-ocean-dark);
 }
 
+.quiz-prompt .group-name {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--color-ocean-dark);
+}
+
+.name-option .option-group {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-ocean-dark);
+}
+
 .quiz-prompt .english-name {
     font-size: 1rem;
     color: var(--color-text-light);

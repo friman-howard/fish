@@ -4,8 +4,11 @@
  */
 
 const STORAGE_KEY = "maldives-fish-quiz-state";
+const TOTAL_ROUNDS = 7;
 
 const ROUND_NAMES = [
+    "Pick the Image (by Group)",
+    "Pick the Group (from Image)",
     "Pick the Image (with English name)",
     "Pick the Name (with English name)",
     "Pick the Image (Latin only)",
@@ -14,6 +17,8 @@ const ROUND_NAMES = [
 ];
 
 const ROUND_DESCRIPTIONS = [
+    "4 images, 1 group name - pick a fish from that group",
+    "1 image, 4 group names - pick the correct group",
     "4 images, 1 name (English + Latin) - pick the matching image",
     "1 image, 4 names (English + Latin) - pick the matching name",
     "4 images, 1 Latin name - pick the matching image",
@@ -26,7 +31,7 @@ const ROUND_DESCRIPTIONS = [
  */
 function createInitialState(speciesIds) {
     const roundProgress = {};
-    for (let r = 1; r <= 5; r++) {
+    for (let r = 1; r <= TOTAL_ROUNDS; r++) {
         roundProgress[r] = {
             remaining: r === 1 ? shuffle([...speciesIds]) : [...speciesIds],
             completed: [],
@@ -43,7 +48,7 @@ function createInitialState(speciesIds) {
             totalAttempts: 0,
             perSpecies: {}
         },
-        version: 2
+        version: 3
     };
 }
 
@@ -55,18 +60,56 @@ function loadState(speciesIds) {
         const saved = localStorage.getItem(STORAGE_KEY);
         if (saved) {
             const state = JSON.parse(saved);
+
+            // Migrate from version 2 (5 rounds) to version 3 (7 rounds)
             if (state.version === 2 && state.roundProgress) {
+                const newProgress = {};
+                // New group rounds 1 & 2 get fresh species lists
+                newProgress[1] = {
+                    remaining: shuffle([...speciesIds]),
+                    completed: [],
+                    retryQueue: [],
+                    isRetrying: false
+                };
+                newProgress[2] = {
+                    remaining: [...speciesIds],
+                    completed: [],
+                    retryQueue: [],
+                    isRetrying: false
+                };
+                // Old rounds 1-5 shift to 3-7
+                for (let oldR = 1; oldR <= 5; oldR++) {
+                    if (state.roundProgress[oldR]) {
+                        newProgress[oldR + 2] = state.roundProgress[oldR];
+                    } else {
+                        newProgress[oldR + 2] = {
+                            remaining: [...speciesIds],
+                            completed: [],
+                            retryQueue: [],
+                            isRetrying: false
+                        };
+                    }
+                }
+                state.roundProgress = newProgress;
+                // Shift current round forward by 2
+                state.currentRound = Math.min(state.currentRound + 2, TOTAL_ROUNDS);
+                state.version = 3;
+                saveState(state);
+                return state;
+            }
+
+            if (state.version === 3 && state.roundProgress) {
                 // Validate that species IDs match
+                const firstRoundWithData = state.roundProgress[1] || state.roundProgress[3];
                 const savedIds = new Set([
-                    ...state.roundProgress[1].remaining,
-                    ...state.roundProgress[1].completed
+                    ...firstRoundWithData.remaining,
+                    ...firstRoundWithData.completed
                 ]);
-                const currentIds = new Set(speciesIds);
 
                 // If species list changed, add new species to remaining
                 for (const id of speciesIds) {
                     if (!savedIds.has(id)) {
-                        for (let r = 1; r <= 5; r++) {
+                        for (let r = 1; r <= TOTAL_ROUNDS; r++) {
                             state.roundProgress[r].remaining.push(id);
                         }
                     }
@@ -178,8 +221,8 @@ function isRoundComplete(state) {
  * Advance to the next round. Returns false if already at the last round.
  */
 function advanceRound(state) {
-    if (state.currentRound >= 5) {
-        return false; // All rounds complete
+    if (state.currentRound >= TOTAL_ROUNDS) {
+        return false;
     }
 
     state.currentRound++;
@@ -190,9 +233,8 @@ function advanceRound(state) {
         id => !progress.completed.includes(id) && !progress.remaining.includes(id)
     )]);
 
-    // Actually, for a new round, we want all species
+    // If this round hasn't been started, populate from round 1's list
     if (progress.remaining.length === 0 && progress.completed.length === 0) {
-        // This round hasn't been started - populate from round 1's completed list
         const allSpecies = [
             ...state.roundProgress[1].completed,
             ...state.roundProgress[1].remaining,

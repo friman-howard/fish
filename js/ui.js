@@ -26,7 +26,7 @@ function renderHome(state, totalSpecies) {
     const overview = document.getElementById("progress-overview");
     overview.innerHTML = "";
 
-    for (let r = 1; r <= 5; r++) {
+    for (let r = 1; r <= TOTAL_ROUNDS; r++) {
         const completion = getRoundCompletion(state, r);
         const total = getTotalSpecies(state, r);
         const completed = state.roundProgress[r].completed.length;
@@ -88,82 +88,27 @@ function renderQuestion(question, state) {
     content.innerHTML = "";
 
     switch (question.type) {
-        case 1: renderRound1(content, question); break;
-        case 2: renderRound2(content, question); break;
-        case 3: renderRound3(content, question); break;
-        case 4: renderRound4(content, question); break;
-        case 5: renderRound5(content, question); break;
+        case 1: renderGroupImageRound(content, question); break;
+        case 2: renderGroupNameRound(content, question); break;
+        case 3: renderSpeciesImageRound(content, question, true); break;
+        case 4: renderSpeciesNameRound(content, question, true); break;
+        case 5: renderSpeciesImageRound(content, question, false); break;
+        case 6: renderSpeciesNameRound(content, question, false); break;
+        case 7: renderTypeRound(content, question); break;
     }
 
     showScreen("quiz-screen");
 }
 
 /**
- * Round 1: 4 images + 1 English+Latin name
+ * Round 1: 4 images + 1 group name — pick a fish from that group.
  */
-function renderRound1(container, question) {
-    // Prompt: species name
+function renderGroupImageRound(container, question) {
     const prompt = document.createElement("div");
     prompt.className = "quiz-prompt";
     prompt.innerHTML = `
-        <div class="label">Which image is this species?</div>
-        <div class="latin-name">${question.prompt.latinName}</div>
-        <div class="english-name">${question.prompt.englishName}</div>
-    `;
-    container.appendChild(prompt);
-
-    // Image grid
-    const grid = document.createElement("div");
-    grid.className = "image-grid";
-
-    question.options.forEach((option, idx) => {
-        const div = document.createElement("div");
-        div.className = "image-option";
-        div.innerHTML = `<img src="${option.image}" alt="Fish option" loading="lazy">`;
-        div.addEventListener("click", () => handleImageAnswer(idx, question));
-        grid.appendChild(div);
-    });
-
-    container.appendChild(grid);
-}
-
-/**
- * Round 2: 1 image + 4 English+Latin names
- */
-function renderRound2(container, question) {
-    // Image
-    const imgDiv = document.createElement("div");
-    imgDiv.className = "quiz-image-single";
-    imgDiv.innerHTML = `<img src="${question.prompt.image}" alt="Fish to identify" loading="lazy">`;
-    container.appendChild(imgDiv);
-
-    // Name options
-    const options = document.createElement("div");
-    options.className = "name-options";
-
-    question.options.forEach((option, idx) => {
-        const btn = document.createElement("div");
-        btn.className = "name-option";
-        btn.innerHTML = `
-            <div class="option-latin">${option.latinName}</div>
-            <div class="option-english">${option.englishName}</div>
-        `;
-        btn.addEventListener("click", () => handleNameAnswer(idx, question));
-        options.appendChild(btn);
-    });
-
-    container.appendChild(options);
-}
-
-/**
- * Round 3: 4 images + 1 Latin-only name
- */
-function renderRound3(container, question) {
-    const prompt = document.createElement("div");
-    prompt.className = "quiz-prompt";
-    prompt.innerHTML = `
-        <div class="label">Which image is this species?</div>
-        <div class="latin-name">${question.prompt.latinName}</div>
+        <div class="label">Which image is a:</div>
+        <div class="group-name">${question.prompt.groupName}</div>
     `;
     container.appendChild(prompt);
 
@@ -182,9 +127,61 @@ function renderRound3(container, question) {
 }
 
 /**
- * Round 4: 1 image + 4 Latin-only names
+ * Round 2: 1 image + 4 group names — pick the correct group.
  */
-function renderRound4(container, question) {
+function renderGroupNameRound(container, question) {
+    const imgDiv = document.createElement("div");
+    imgDiv.className = "quiz-image-single";
+    imgDiv.innerHTML = `<img src="${question.prompt.image}" alt="Fish to identify" loading="lazy">`;
+    container.appendChild(imgDiv);
+
+    const options = document.createElement("div");
+    options.className = "name-options";
+
+    question.options.forEach((option, idx) => {
+        const btn = document.createElement("div");
+        btn.className = "name-option";
+        btn.innerHTML = `<div class="option-group">${option.groupName}</div>`;
+        btn.addEventListener("click", () => handleNameAnswer(idx, question));
+        options.appendChild(btn);
+    });
+
+    container.appendChild(options);
+}
+
+/**
+ * Rounds 3 & 5: 4 images + 1 name — pick the matching image.
+ * showEnglish controls whether English name is displayed.
+ */
+function renderSpeciesImageRound(container, question, showEnglish) {
+    const prompt = document.createElement("div");
+    prompt.className = "quiz-prompt";
+    prompt.innerHTML = `
+        <div class="label">Which image is this species?</div>
+        <div class="latin-name">${question.prompt.latinName}</div>
+        ${showEnglish && question.prompt.englishName ? `<div class="english-name">${question.prompt.englishName}</div>` : ""}
+    `;
+    container.appendChild(prompt);
+
+    const grid = document.createElement("div");
+    grid.className = "image-grid";
+
+    question.options.forEach((option, idx) => {
+        const div = document.createElement("div");
+        div.className = "image-option";
+        div.innerHTML = `<img src="${option.image}" alt="Fish option" loading="lazy">`;
+        div.addEventListener("click", () => handleImageAnswer(idx, question));
+        grid.appendChild(div);
+    });
+
+    container.appendChild(grid);
+}
+
+/**
+ * Rounds 4 & 6: 1 image + 4 names — pick the matching name.
+ * showEnglish controls whether English name is displayed.
+ */
+function renderSpeciesNameRound(container, question, showEnglish) {
     const imgDiv = document.createElement("div");
     imgDiv.className = "quiz-image-single";
     imgDiv.innerHTML = `<img src="${question.prompt.image}" alt="Fish to identify" loading="lazy">`;
@@ -198,6 +195,7 @@ function renderRound4(container, question) {
         btn.className = "name-option";
         btn.innerHTML = `
             <div class="option-latin">${option.latinName}</div>
+            ${showEnglish && option.englishName ? `<div class="option-english">${option.englishName}</div>` : ""}
         `;
         btn.addEventListener("click", () => handleNameAnswer(idx, question));
         options.appendChild(btn);
@@ -207,9 +205,9 @@ function renderRound4(container, question) {
 }
 
 /**
- * Round 5: 1 image + text input for Latin name
+ * Round 7: 1 image + text input for Latin name.
  */
-function renderRound5(container, question) {
+function renderTypeRound(container, question) {
     const imgDiv = document.createElement("div");
     imgDiv.className = "quiz-image-single";
     imgDiv.innerHTML = `<img src="${question.prompt.image}" alt="Fish to identify" loading="lazy">`;
@@ -245,7 +243,7 @@ function renderRound5(container, question) {
 }
 
 /**
- * Handle clicking an image option (Rounds 1, 3).
+ * Handle clicking an image option (Rounds 1, 3, 5).
  */
 function handleImageAnswer(selectedIndex, question) {
     if (answerLocked) return;
@@ -271,7 +269,7 @@ function handleImageAnswer(selectedIndex, question) {
 }
 
 /**
- * Handle clicking a name option (Rounds 2, 4).
+ * Handle clicking a name option (Rounds 2, 4, 6).
  */
 function handleNameAnswer(selectedIndex, question) {
     if (answerLocked) return;
@@ -296,7 +294,7 @@ function handleNameAnswer(selectedIndex, question) {
 }
 
 /**
- * Handle text input answer (Round 5).
+ * Handle text input answer (Round 7).
  */
 function handleTextAnswer(question) {
     if (answerLocked) return;
@@ -379,7 +377,7 @@ function renderRoundComplete(state, round) {
     `;
 
     const btnNextRound = document.getElementById("btn-next-round");
-    if (round >= 5) {
+    if (round >= TOTAL_ROUNDS) {
         showScreen("all-complete-screen");
         return;
     }

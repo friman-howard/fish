@@ -21,14 +21,19 @@ const REQUEST_DELAY = 300; // ms between API calls
 async function loadSpeciesImages(speciesList, progressCallback) {
     // Check cache first
     const cached = loadImageCache();
+    const isOffline = !navigator.onLine;
+
     if (cached && Object.keys(cached).length > 0) {
-        // Verify cache has enough species
         const cachedCount = Object.keys(cached).length;
         const neededCount = speciesList.length;
-        if (cachedCount >= neededCount * 0.8) {
+        // If offline, use whatever we have cached
+        if (isOffline || cachedCount >= neededCount * 0.8) {
             return cached;
         }
     }
+
+    // If offline with no cache, return empty (app will show error)
+    if (isOffline) return cached || {};
 
     const imageMap = cached || {};
     const uncached = speciesList.filter(sp => !imageMap[sp.id] || imageMap[sp.id].length === 0);
@@ -253,6 +258,47 @@ function saveImageCache(imageMap) {
  */
 function clearImageCache() {
     localStorage.removeItem(IMAGE_CACHE_KEY);
+}
+
+/**
+ * Pre-cache all image files into the service worker cache.
+ * This fetches every image URL so the service worker intercepts and
+ * stores the actual image data, making the app fully offline-capable.
+ */
+async function precacheAllImages(imageMap, progressCallback) {
+    // Collect all unique image URLs
+    const allUrls = [];
+    for (const id in imageMap) {
+        for (const url of imageMap[id]) {
+            if (url && !allUrls.includes(url)) {
+                allUrls.push(url);
+            }
+        }
+    }
+
+    if (allUrls.length === 0) return;
+
+    const total = allUrls.length;
+    let completed = 0;
+    const PRECACHE_BATCH = 10;
+
+    for (let i = 0; i < allUrls.length; i += PRECACHE_BATCH) {
+        const batch = allUrls.slice(i, i + PRECACHE_BATCH);
+
+        await Promise.all(batch.map(async (url) => {
+            try {
+                // The service worker will intercept this fetch and cache the response
+                await fetch(url, { mode: "no-cors" });
+            } catch (e) {
+                // Ignore individual failures
+            }
+            completed++;
+        }));
+
+        if (progressCallback) {
+            progressCallback(completed, total);
+        }
+    }
 }
 
 function sleep(ms) {

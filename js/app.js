@@ -35,12 +35,22 @@ async function initApp() {
         allSpecies = allSpecies.filter(sp => sp.images && sp.images.length > 0);
 
         if (allSpecies.length === 0) {
-            loadingText.textContent =
-                "Could not load species images. Please check your internet connection and refresh.";
+            loadingText.textContent = navigator.onLine
+                ? "Could not load species images. Please refresh the page."
+                : "No cached images available. Please connect to the internet and reload to download images.";
             return;
         }
 
-        loadingText.textContent = `Loaded ${allSpecies.length} species. Starting quiz...`;
+        loadingText.textContent = `Loaded ${allSpecies.length} species.`;
+
+        // Pre-cache all images for offline use (runs in background after first fetch)
+        if (navigator.onLine) {
+            loadingText.textContent = `Caching images for offline use...`;
+            await precacheAllImages(imageMap, (done, total) => {
+                const pct = Math.round((done / total) * 100);
+                loadingText.textContent = `Caching images for offline use... ${pct}%`;
+            });
+        }
 
         // Build species map for quick lookup
         speciesMap = {};
@@ -206,9 +216,14 @@ async function handleRefreshImages() {
     speciesMap = {};
     allSpecies.forEach(sp => { speciesMap[sp.id] = sp; });
 
+    btn.textContent = "Caching for offline...";
+    await precacheAllImages(imageMap, (done, total) => {
+        btn.textContent = `Caching... ${Math.round((done/total)*100)}%`;
+    });
+
     btn.disabled = false;
     btn.textContent = "Refresh Images";
-    alert(`Loaded images for ${allSpecies.length} species.`);
+    alert(`Loaded and cached images for ${allSpecies.length} species.`);
 }
 
 /**

@@ -155,15 +155,13 @@ function getNextSpecies(state) {
         return progress.remaining[0];
     }
 
-    // Check retry queue
+    // Recycle retry queue whenever remaining is empty —
+    // incorrect species keep appearing until answered correctly
     if (progress.retryQueue.length > 0) {
-        if (!progress.isRetrying) {
-            // Move retry queue to remaining and shuffle
-            progress.remaining = shuffle([...progress.retryQueue]);
-            progress.retryQueue = [];
-            progress.isRetrying = true;
-            saveState(state);
-        }
+        progress.remaining = shuffle([...progress.retryQueue]);
+        progress.retryQueue = [];
+        progress.isRetrying = true;
+        saveState(state);
         return progress.remaining[0];
     }
 

@@ -461,9 +461,23 @@ body {
     color: var(--color-ocean-dark);
 }
 
+.quiz-prompt .family-name {
+    font-size: 1.3rem;
+    font-weight: 700;
+    font-style: italic;
+    color: var(--color-ocean-dark);
+}
+
 .name-option .option-group {
     font-size: 1rem;
     font-weight: 600;
+    color: var(--color-ocean-dark);
+}
+
+.name-option .option-family {
+    font-size: 1rem;
+    font-weight: 600;
+    font-style: italic;
     color: var(--color-ocean-dark);
 }
 

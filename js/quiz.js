@@ -1,10 +1,11 @@
 /**
  * Quiz engine for the Maldives Marine Life Quiz.
  * Handles question generation, distractor selection, and answer validation
- * for all 7 round types.
+ * for all 9 round types.
  *
- * Rounds 1-2: Group identification
- * Rounds 3-7: Species identification (progressively harder)
+ * Rounds 1-2: Group identification (common names)
+ * Rounds 3-4: Family identification (Latin family names)
+ * Rounds 5-9: Species identification (progressively harder)
  */
 
 /**
@@ -26,11 +27,13 @@ function generateQuestion(state, speciesMap, allSpecies) {
     switch (round) {
         case 1: return generateGroupRound1(target, speciesMap, allSpecies);
         case 2: return generateGroupRound2(target, speciesMap, allSpecies);
-        case 3: return generateRound3(target, speciesMap, allSpecies);
-        case 4: return generateRound4(target, speciesMap, allSpecies);
+        case 3: return generateFamilyRound1(target, speciesMap, allSpecies);
+        case 4: return generateFamilyRound2(target, speciesMap, allSpecies);
         case 5: return generateRound5(target, speciesMap, allSpecies);
         case 6: return generateRound6(target, speciesMap, allSpecies);
-        case 7: return generateRound7(target);
+        case 7: return generateRound7(target, speciesMap, allSpecies);
+        case 8: return generateRound8(target, speciesMap, allSpecies);
+        case 9: return generateRound9(target);
         default: return null;
     }
 }
@@ -91,11 +94,11 @@ function generateGroupRound2(target, speciesMap, allSpecies) {
 }
 
 /**
- * Round 3: Show 4 images + 1 name (English + Latin).
- * User picks which image matches the name.
+ * Round 3 (Family): Show 4 images from different families + 1 Latin family name.
+ * User picks which image belongs to that family.
  */
-function generateRound3(target, speciesMap, allSpecies) {
-    const distractors = pickDistractors(target, speciesMap, allSpecies, 3);
+function generateFamilyRound1(target, speciesMap, allSpecies) {
+    const distractors = pickFamilyDistractors(target, allSpecies, 3);
     const options = [target, ...distractors].map(sp => ({
         speciesId: sp.id,
         image: randomImage(sp)
@@ -108,8 +111,7 @@ function generateRound3(target, speciesMap, allSpecies) {
         type: 3,
         targetSpecies: target,
         prompt: {
-            latinName: target.latinName,
-            englishName: target.englishName
+            familyName: target.family
         },
         options: shuffled,
         correctIndex,
@@ -118,19 +120,21 @@ function generateRound3(target, speciesMap, allSpecies) {
 }
 
 /**
- * Round 4: Show 1 image + 4 names (English + Latin).
- * User picks which name matches the image.
+ * Round 4 (Family): Show 1 image + 4 Latin family names.
+ * User picks which family the fish belongs to.
  */
-function generateRound4(target, speciesMap, allSpecies) {
-    const distractors = pickDistractors(target, speciesMap, allSpecies, 3);
-    const options = [target, ...distractors].map(sp => ({
-        speciesId: sp.id,
-        latinName: sp.latinName,
-        englishName: sp.englishName
+function generateFamilyRound2(target, speciesMap, allSpecies) {
+    // Get unique families excluding the target's family
+    const allFamilies = [...new Set(allSpecies.map(sp => sp.family))];
+    const otherFamilies = allFamilies.filter(f => f !== target.family);
+    const distractorFamilies = shuffle(otherFamilies).slice(0, 3);
+
+    const options = [target.family, ...distractorFamilies].map(family => ({
+        familyName: family
     }));
 
     const shuffled = shuffle(options);
-    const correctIndex = shuffled.findIndex(o => o.speciesId === target.id);
+    const correctIndex = shuffled.findIndex(o => o.familyName === target.family);
 
     return {
         type: 4,
@@ -145,8 +149,8 @@ function generateRound4(target, speciesMap, allSpecies) {
 }
 
 /**
- * Round 5: Show 4 images + 1 Latin-only name.
- * User picks which image matches the Latin name.
+ * Round 5: Show 4 images + 1 name (English + Latin).
+ * User picks which image matches the name.
  */
 function generateRound5(target, speciesMap, allSpecies) {
     const distractors = pickDistractors(target, speciesMap, allSpecies, 3);
@@ -162,7 +166,8 @@ function generateRound5(target, speciesMap, allSpecies) {
         type: 5,
         targetSpecies: target,
         prompt: {
-            latinName: target.latinName
+            latinName: target.latinName,
+            englishName: target.englishName
         },
         options: shuffled,
         correctIndex,
@@ -171,14 +176,15 @@ function generateRound5(target, speciesMap, allSpecies) {
 }
 
 /**
- * Round 6: Show 1 image + 4 Latin-only names.
- * User picks which Latin name matches the image.
+ * Round 6: Show 1 image + 4 names (English + Latin).
+ * User picks which name matches the image.
  */
 function generateRound6(target, speciesMap, allSpecies) {
     const distractors = pickDistractors(target, speciesMap, allSpecies, 3);
     const options = [target, ...distractors].map(sp => ({
         speciesId: sp.id,
-        latinName: sp.latinName
+        latinName: sp.latinName,
+        englishName: sp.englishName
     }));
 
     const shuffled = shuffle(options);
@@ -197,11 +203,63 @@ function generateRound6(target, speciesMap, allSpecies) {
 }
 
 /**
- * Round 7: Show 1 image. User types the Latin name.
+ * Round 7: Show 4 images + 1 Latin-only name.
+ * User picks which image matches the Latin name.
  */
-function generateRound7(target) {
+function generateRound7(target, speciesMap, allSpecies) {
+    const distractors = pickDistractors(target, speciesMap, allSpecies, 3);
+    const options = [target, ...distractors].map(sp => ({
+        speciesId: sp.id,
+        image: randomImage(sp)
+    }));
+
+    const shuffled = shuffle(options);
+    const correctIndex = shuffled.findIndex(o => o.speciesId === target.id);
+
     return {
         type: 7,
+        targetSpecies: target,
+        prompt: {
+            latinName: target.latinName
+        },
+        options: shuffled,
+        correctIndex,
+        correctId: target.id
+    };
+}
+
+/**
+ * Round 8: Show 1 image + 4 Latin-only names.
+ * User picks which Latin name matches the image.
+ */
+function generateRound8(target, speciesMap, allSpecies) {
+    const distractors = pickDistractors(target, speciesMap, allSpecies, 3);
+    const options = [target, ...distractors].map(sp => ({
+        speciesId: sp.id,
+        latinName: sp.latinName
+    }));
+
+    const shuffled = shuffle(options);
+    const correctIndex = shuffled.findIndex(o => o.speciesId === target.id);
+
+    return {
+        type: 8,
+        targetSpecies: target,
+        prompt: {
+            image: randomImage(target)
+        },
+        options: shuffled,
+        correctIndex,
+        correctId: target.id
+    };
+}
+
+/**
+ * Round 9: Show 1 image. User types the Latin name.
+ */
+function generateRound9(target) {
+    return {
+        type: 9,
         targetSpecies: target,
         prompt: {
             image: randomImage(target)
@@ -209,6 +267,38 @@ function generateRound7(target) {
         correctAnswer: target.latinName,
         correctId: target.id
     };
+}
+
+/**
+ * Pick N distractor species from DIFFERENT families (for family rounds).
+ */
+function pickFamilyDistractors(target, allSpecies, count) {
+    const usedFamilies = new Set([target.family]);
+    const distractors = [];
+
+    const candidates = shuffle(
+        allSpecies.filter(sp => sp.id !== target.id && sp.images && sp.images.length > 0)
+    );
+
+    for (const sp of candidates) {
+        if (distractors.length >= count) break;
+        if (!usedFamilies.has(sp.family)) {
+            distractors.push(sp);
+            usedFamilies.add(sp.family);
+        }
+    }
+
+    // If not enough unique families, fill with any other species
+    if (distractors.length < count) {
+        for (const sp of candidates) {
+            if (distractors.length >= count) break;
+            if (sp.id !== target.id && !distractors.some(d => d.id === sp.id)) {
+                distractors.push(sp);
+            }
+        }
+    }
+
+    return distractors;
 }
 
 /**

@@ -90,11 +90,13 @@ function renderQuestion(question, state) {
     switch (question.type) {
         case 1: renderGroupImageRound(content, question); break;
         case 2: renderGroupNameRound(content, question); break;
-        case 3: renderSpeciesImageRound(content, question, true); break;
-        case 4: renderSpeciesNameRound(content, question, true); break;
-        case 5: renderSpeciesImageRound(content, question, false); break;
-        case 6: renderSpeciesNameRound(content, question, false); break;
-        case 7: renderTypeRound(content, question); break;
+        case 3: renderFamilyImageRound(content, question); break;
+        case 4: renderFamilyNameRound(content, question); break;
+        case 5: renderSpeciesImageRound(content, question, true); break;
+        case 6: renderSpeciesNameRound(content, question, true); break;
+        case 7: renderSpeciesImageRound(content, question, false); break;
+        case 8: renderSpeciesNameRound(content, question, false); break;
+        case 9: renderTypeRound(content, question); break;
     }
 
     showScreen("quiz-screen");
@@ -142,6 +144,55 @@ function renderGroupNameRound(container, question) {
         const btn = document.createElement("div");
         btn.className = "name-option";
         btn.innerHTML = `<div class="option-group">${option.groupName}</div>`;
+        btn.addEventListener("click", () => handleNameAnswer(idx, question));
+        options.appendChild(btn);
+    });
+
+    container.appendChild(options);
+}
+
+/**
+ * Round 3: 4 images + 1 Latin family name — pick a fish from that family.
+ */
+function renderFamilyImageRound(container, question) {
+    const prompt = document.createElement("div");
+    prompt.className = "quiz-prompt";
+    prompt.innerHTML = `
+        <div class="label">Which image is from family:</div>
+        <div class="family-name">${question.prompt.familyName}</div>
+    `;
+    container.appendChild(prompt);
+
+    const grid = document.createElement("div");
+    grid.className = "image-grid";
+
+    question.options.forEach((option, idx) => {
+        const div = document.createElement("div");
+        div.className = "image-option";
+        div.innerHTML = `<img src="${option.image}" alt="Fish option" loading="lazy">`;
+        div.addEventListener("click", () => handleImageAnswer(idx, question));
+        grid.appendChild(div);
+    });
+
+    container.appendChild(grid);
+}
+
+/**
+ * Round 4: 1 image + 4 Latin family names — pick the correct family.
+ */
+function renderFamilyNameRound(container, question) {
+    const imgDiv = document.createElement("div");
+    imgDiv.className = "quiz-image-single";
+    imgDiv.innerHTML = `<img src="${question.prompt.image}" alt="Fish to identify" loading="lazy">`;
+    container.appendChild(imgDiv);
+
+    const options = document.createElement("div");
+    options.className = "name-options";
+
+    question.options.forEach((option, idx) => {
+        const btn = document.createElement("div");
+        btn.className = "name-option";
+        btn.innerHTML = `<div class="option-family">${option.familyName}</div>`;
         btn.addEventListener("click", () => handleNameAnswer(idx, question));
         options.appendChild(btn);
     });

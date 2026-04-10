@@ -4,11 +4,13 @@
  */
 
 const STORAGE_KEY = "maldives-fish-quiz-state";
-const TOTAL_ROUNDS = 7;
+const TOTAL_ROUNDS = 9;
 
 const ROUND_NAMES = [
     "Pick the Image (by Group)",
     "Pick the Group (from Image)",
+    "Pick the Image (by Family)",
+    "Pick the Family (from Image)",
     "Pick the Image (with English name)",
     "Pick the Name (with English name)",
     "Pick the Image (Latin only)",
@@ -19,6 +21,8 @@ const ROUND_NAMES = [
 const ROUND_DESCRIPTIONS = [
     "4 images, 1 group name - pick a fish from that group",
     "1 image, 4 group names - pick the correct group",
+    "4 images, 1 Latin family name - pick a fish from that family",
+    "1 image, 4 Latin family names - pick the correct family",
     "4 images, 1 name (English + Latin) - pick the matching image",
     "1 image, 4 names (English + Latin) - pick the matching name",
     "4 images, 1 Latin name - pick the matching image",
@@ -48,7 +52,7 @@ function createInitialState(speciesIds) {
             totalAttempts: 0,
             perSpecies: {}
         },
-        version: 3
+        version: 4
     };
 }
 
@@ -91,14 +95,64 @@ function loadState(speciesIds) {
                     }
                 }
                 state.roundProgress = newProgress;
-                // Shift current round forward by 2
-                state.currentRound = Math.min(state.currentRound + 2, TOTAL_ROUNDS);
+                state.currentRound = Math.min(state.currentRound + 2, 7);
                 state.version = 3;
+                // Fall through to v3→v4 migration below
+            }
+
+            // Migrate from version 3 (7 rounds) to version 4 (9 rounds)
+            if (state.version === 3 && state.roundProgress) {
+                const newProgress = {};
+                // Group rounds 1 & 2 unchanged
+                newProgress[1] = state.roundProgress[1] || {
+                    remaining: shuffle([...speciesIds]),
+                    completed: [],
+                    retryQueue: [],
+                    isRetrying: false
+                };
+                newProgress[2] = state.roundProgress[2] || {
+                    remaining: [...speciesIds],
+                    completed: [],
+                    retryQueue: [],
+                    isRetrying: false
+                };
+                // New family rounds 3 & 4 get fresh species lists
+                newProgress[3] = {
+                    remaining: shuffle([...speciesIds]),
+                    completed: [],
+                    retryQueue: [],
+                    isRetrying: false
+                };
+                newProgress[4] = {
+                    remaining: [...speciesIds],
+                    completed: [],
+                    retryQueue: [],
+                    isRetrying: false
+                };
+                // Old rounds 3-7 shift to 5-9
+                for (let oldR = 3; oldR <= 7; oldR++) {
+                    if (state.roundProgress[oldR]) {
+                        newProgress[oldR + 2] = state.roundProgress[oldR];
+                    } else {
+                        newProgress[oldR + 2] = {
+                            remaining: [...speciesIds],
+                            completed: [],
+                            retryQueue: [],
+                            isRetrying: false
+                        };
+                    }
+                }
+                state.roundProgress = newProgress;
+                // Shift current round: rounds 1-2 stay, rounds 3-7 become 5-9
+                if (state.currentRound >= 3) {
+                    state.currentRound = Math.min(state.currentRound + 2, TOTAL_ROUNDS);
+                }
+                state.version = 4;
                 saveState(state);
                 return state;
             }
 
-            if (state.version === 3 && state.roundProgress) {
+            if (state.version === 4 && state.roundProgress) {
                 // Validate that species IDs match
                 const firstRoundWithData = state.roundProgress[1] || state.roundProgress[3];
                 const savedIds = new Set([
